@@ -8,11 +8,7 @@ from services.normalizer import normalize_name, strip_patronymic
 
 
 TOTAL_RE = re.compile(r"^\s*всего\b", re.IGNORECASE)
-HEADER_RE = re.compile(r"^\s*№?\s*фио\b", re.IGNORECASE)
-TOTAL_LINE_RE = re.compile(
-    r"^\s*всего\s+(?P<a>\d[\d ]*)\s+(?P<b>\d[\d ]*)\s+(?P<c>\d[\d ]*)\s*$",
-    re.IGNORECASE,
-)
+HEADER_RE = re.compile(r"фио", re.IGNORECASE)
 
 
 def parse_decimal(raw: str) -> Decimal:
@@ -28,9 +24,9 @@ class OrderTextParser:
             parsed.errors.append("Текст заказа пуст.")
             return parsed
 
-        lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
+        lines = [self._normalize_line(line) for line in raw_text.splitlines() if line.strip()]
         for index, line in enumerate(lines, start=1):
-            if HEADER_RE.search(line):
+            if self._is_header_line(line):
                 continue
             if TOTAL_RE.search(line):
                 totals = self._parse_totals(line)
@@ -65,13 +61,15 @@ class OrderTextParser:
         return parsed
 
     def _parse_totals(self, line: str) -> ParsedOrderTotals | None:
-        match = TOTAL_LINE_RE.match(line)
-        if not match:
+        payload = line.split()[1:]
+        numbers = self._split_three_numbers(payload)
+        if not numbers:
             return None
+        amount, discount, with_discount = numbers
         return ParsedOrderTotals(
-            amount_tenge=parse_decimal(match.group("a")),
-            discount_tenge=parse_decimal(match.group("b")),
-            amount_with_discount_tenge=parse_decimal(match.group("c")),
+            amount_tenge=amount,
+            discount_tenge=discount,
+            amount_with_discount_tenge=with_discount,
         )
 
     def _parse_item_line(self, line: str) -> OrderItem | None:
@@ -114,3 +112,14 @@ class OrderTextParser:
                 parse_decimal(tokens[-1]),
             )
         return None
+
+    @staticmethod
+    def _normalize_line(line: str) -> str:
+        cleaned = line.replace("\u00A0", " ").replace("\t", " ")
+        cleaned = re.sub(r"\s+", " ", cleaned).strip()
+        return cleaned
+
+    @staticmethod
+    def _is_header_line(line: str) -> bool:
+        lowered = line.casefold()
+        return "фио" in lowered and ("сумма" in lowered or "скидка" in lowered)
