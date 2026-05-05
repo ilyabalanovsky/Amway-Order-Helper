@@ -109,6 +109,8 @@ class PartnersTab(QWidget):
 
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
         filters = QHBoxLayout()
         self.search = QLineEdit()
         self.search.setPlaceholderText("Поиск по ФИО")
@@ -143,8 +145,9 @@ class PartnersTab(QWidget):
         buttons.addWidget(delete_partner)
         layout.addLayout(buttons)
 
-        self.table = QTableWidget(0, 4)
-        self.table.setHorizontalHeaderLabels(["ID", "ФИО", "Группа", "Комментарий"])
+        self.table = QTableWidget(0, 3)
+        self.table.setHorizontalHeaderLabels(["ФИО", "Группа", "Комментарий"])
+        self.table.verticalHeader().setVisible(False)
         layout.addWidget(self.table)
 
     def refresh(self) -> None:
@@ -164,10 +167,11 @@ class PartnersTab(QWidget):
         self.table.setRowCount(len(partners))
         group_map = self.app_context.get_group_name_map()
         for row, partner in enumerate(partners):
-            self.table.setItem(row, 0, QTableWidgetItem(str(partner.id)))
-            self.table.setItem(row, 1, QTableWidgetItem(partner.full_name))
-            self.table.setItem(row, 2, QTableWidgetItem(group_map.get(partner.group_id, "")))
-            self.table.setItem(row, 3, QTableWidgetItem(partner.comment))
+            name_item = QTableWidgetItem(partner.full_name)
+            name_item.setData(Qt.ItemDataRole.UserRole, partner.id)
+            self.table.setItem(row, 0, name_item)
+            self.table.setItem(row, 1, QTableWidgetItem(group_map.get(partner.group_id, "")))
+            self.table.setItem(row, 2, QTableWidgetItem(partner.comment))
 
     def save_partner(self) -> None:
         full_name = clean_name(self.name_edit.text())
@@ -219,5 +223,6 @@ class PartnersTab(QWidget):
         row = self.table.currentRow()
         if row < 0:
             return
-        self.app_context.delete_partner(int(self.table.item(row, 0).text()))
+        partner_id = self.table.item(row, 0).data(Qt.ItemDataRole.UserRole)
+        self.app_context.delete_partner(int(partner_id))
         self.refresh()

@@ -40,15 +40,18 @@ class OrderTab(QWidget):
 
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
+        root.setContentsMargins(16, 16, 16, 16)
+        root.setSpacing(12)
         splitter = QSplitter(Qt.Orientation.Vertical)
         root.addWidget(splitter)
 
         top = QWidget()
         top_layout = QVBoxLayout(top)
         self.text_edit = QTextEdit()
-        self.parse_button = QPushButton("Распарсить")
+        self.text_edit.setMinimumHeight(180)
+        self.parse_button = QPushButton("Запустить парсинг")
         self.parse_button.clicked.connect(self.parse_order)
-        top_layout.addWidget(QLabel("Текст заказа"))
+        top_layout.addWidget(QLabel("Текст с расширения (с названием полей)"))
         top_layout.addWidget(self.text_edit)
         top_layout.addWidget(self.parse_button)
         splitter.addWidget(top)
@@ -81,6 +84,7 @@ class OrderTab(QWidget):
             "№", "ФИО", "Группа", "Сумма", "Скидка", "Со скидкой",
             "Рег. взнос", "Доставка (%)", "Оплатили", "Перевели", "Ошибка",
         ])
+        self.table.verticalHeader().setVisible(False)
         bottom_layout.addWidget(self.table)
 
         buttons = QHBoxLayout()
@@ -99,6 +103,7 @@ class OrderTab(QWidget):
 
     def _decimal_box(self, value: float, decimals: int = 2, step: float = 1.0) -> QDoubleSpinBox:
         box = QDoubleSpinBox()
+        box.setButtonSymbols(QDoubleSpinBox.ButtonSymbols.NoButtons)
         box.setDecimals(decimals)
         box.setRange(0, 1_000_000)
         box.setSingleStep(step)

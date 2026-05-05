@@ -22,6 +22,8 @@ class SettingsTab(QWidget):
 
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
         form = QFormLayout()
         self.output_dir = QLineEdit()
         self.file_template = QLineEdit()

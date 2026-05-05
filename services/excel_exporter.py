@@ -55,7 +55,6 @@ COLUMN_WIDTHS = {
     "R": 5.2,
     "S": 5.7,
     "T": 8.5,
-    "W": 1.2,
     "Y": 1.2,
 }
 
@@ -155,7 +154,7 @@ class ExcelExporter:
         ws.freeze_panes = "A2"
         for column, width in COLUMN_WIDTHS.items():
             ws.column_dimensions[column].width = width
-        for hidden_column in ("W", "Y"):
+        for hidden_column in ("Y",):
             ws.column_dimensions[hidden_column].hidden = True
 
     def _write_headers(self, ws: Worksheet) -> None:
@@ -177,12 +176,12 @@ class ExcelExporter:
         ws[f"A{row}"] = index
         ws[f"B{row}"] = item.full_name
         ws[f"C{row}"] = float(item.amount_tenge)
+        if item.registration_fee is not None:
+            ws[f"D{row}"] = float(item.registration_fee)
         ws[f"E{row}"] = float(item.discount_tenge)
         ws[f"M{row}"] = float(item.amount_tenge)
         if item.received_rub is not None:
             ws[f"N{row}"] = float(item.received_rub)
-        if item.registration_fee is not None:
-            ws[f"W{row}"] = float(item.registration_fee)
         if item.transferred_rub is not None:
             ws[f"Y{row}"] = float(item.transferred_rub)
         self._apply_item_formulas(ws, row)
@@ -202,8 +201,7 @@ class ExcelExporter:
 
     def _write_group_total(self, ws: Worksheet, row: int, start_row: int, end_row: int) -> None:
         ws[f"B{row}"] = "Всего:"
-        ws[f"D{row}"] = f"=SUM(W{start_row}:W{end_row})"
-        for column in "CEFGHIJKLMNO":
+        for column in "CDEFGHIJKLMNO":
             ws[f"{column}{row}"] = f"=SUM({column}{start_row}:{column}{end_row})"
         ws[f"P{row}"] = f"=SUM(Y{start_row}:Y{end_row})"
         self._style_total_row(ws, row)
@@ -250,6 +248,7 @@ class ExcelExporter:
         }
         for column, value in footer_labels.items():
             ws[f"{column}{label_row}"] = value
+            ws[f"{column}{label_row}"].font = Font(bold=True)
 
         second_group_total = total_rows[1] if len(total_rows) > 1 else None
         first_group_total = total_rows[0] if total_rows else None
@@ -285,6 +284,7 @@ class ExcelExporter:
 
         for row in range(start_row, bcc_balance_row + 1):
             ws[f"B{row}"].font = Font(bold=True)
+        self._style_footer_values(ws, paid_row, balance_row, fact_balance_row, bcc_row, bcc_balance_row)
 
     def _style_body_row(self, ws: Worksheet, row: int) -> None:
         for col in range(1, 21):
@@ -303,6 +303,36 @@ class ExcelExporter:
             cell.font = Font(bold=True, color=color) if color else Font(bold=True)
             cell.alignment = TEXT_ALIGN if col == 2 else CENTER_ALIGN
             if col >= 3:
+                cell.number_format = NUM_FORMAT
+
+    def _style_footer_values(
+        self,
+        ws: Worksheet,
+        paid_row: int,
+        balance_row: int,
+        fact_balance_row: int,
+        bcc_row: int,
+        bcc_balance_row: int,
+    ) -> None:
+        footer_colors = {
+            "C": BLUE,
+            "E": GREEN,
+            "F": BLUE,
+            "G": BLUE,
+            "H": RED,
+            "I": GREEN,
+            "L": GREEN,
+            "N": RED,
+            "O": RED,
+        }
+        rows = [paid_row, balance_row, fact_balance_row, bcc_row, bcc_balance_row]
+        for row in rows:
+            for column, color in footer_colors.items():
+                cell = ws[f"{column}{row}"]
+                if cell.value is None:
+                    continue
+                cell.font = Font(color=color)
+                cell.alignment = CENTER_ALIGN
                 cell.number_format = NUM_FORMAT
 
     def _group_items(self, order: Order) -> list[tuple[str, list[OrderItem]]]:

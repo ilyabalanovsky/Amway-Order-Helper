@@ -23,6 +23,8 @@ class HistoryTab(QWidget):
 
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
         top = QHBoxLayout()
         self.search = QLineEdit()
         self.search.setPlaceholderText("Поиск по номеру, дате, отправителю")
@@ -43,6 +45,7 @@ class HistoryTab(QWidget):
         self.table.setHorizontalHeaderLabels([
             "ID", "Номер", "Дата", "Отправитель", "Город", "Участники", "Сумма", "Курс",
         ])
+        self.table.verticalHeader().setVisible(False)
         layout.addWidget(self.table)
 
     def refresh(self) -> None:

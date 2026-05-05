@@ -39,10 +39,10 @@ def test_exporter_writes_expected_formulas(tmp_path) -> None:
     assert ws["F4"].value == "=C4-E4"
     assert ws["G4"].value == "=F4/$R$2"
     assert ws["H4"].value == "=(C4-D4)/$R$2*$H$2"
-    assert ws["D4"].value is None
+    assert ws["D4"].value == 500
     assert ws["P4"].value is None
     assert ws["M4"].value == 12000
-    assert ws["D5"].value == "=SUM(W4:W4)"
+    assert ws["D5"].value == "=SUM(D4:D4)"
     assert ws["P5"].value == "=SUM(Y4:Y4)"
     assert ws["K2"].value == "=(G7+T2)/G7-1"
     assert ws["K4"].value == "=G4*$K$2"
@@ -52,3 +52,6 @@ def test_exporter_writes_expected_formulas(tmp_path) -> None:
     assert ws["B8"].value == "Номер заказа:"
     assert ws["B12"].value == "Оплатил:"
     assert ws["E15"].value == 0
+    assert ws["F12"].font.color.rgb == "FF2E75B5"
+    assert ws["H12"].font.color.rgb == "FFC00000"
+    assert ws["I12"].font.color.rgb == "FF00B050"

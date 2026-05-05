@@ -114,6 +114,7 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.partners_tab, "Партнёры и группы")
         self.tabs.addTab(self.history_tab, "История заказов")
         self.tabs.addTab(self.settings_tab, "Настройки")
+        self._apply_styles()
 
     def show_history_tab(self) -> None:
         self.tabs.setCurrentWidget(self.history_tab)
@@ -134,3 +135,81 @@ class MainWindow(QMainWindow):
         self.order_tab.tenge_rate_fact.setValue(float(order.tenge_rate_fact))
         self.order_tab.delivery_percent.setValue(float(order.delivery_percent))
         self.order_tab.expenses.setValue(float(order.expenses))
+
+    def _apply_styles(self) -> None:
+        self.setStyleSheet(
+            """
+            QWidget {
+                background: #f6f1e8;
+                color: #2a221c;
+                font-size: 13px;
+            }
+            QMainWindow {
+                background: #efe7da;
+            }
+            QTabWidget::pane {
+                border: 1px solid #d8cbbb;
+                border-radius: 14px;
+                background: #fffaf2;
+                top: -1px;
+            }
+            QTabBar::tab {
+                background: #e8dccb;
+                color: #5e4e3f;
+                border: 1px solid #d8cbbb;
+                padding: 10px 16px;
+                margin-right: 6px;
+                border-top-left-radius: 10px;
+                border-top-right-radius: 10px;
+            }
+            QTabBar::tab:selected {
+                background: #fffaf2;
+                color: #2f241b;
+            }
+            QPushButton {
+                background: #b5654d;
+                color: white;
+                border: none;
+                border-radius: 10px;
+                padding: 10px 14px;
+                font-weight: 600;
+            }
+            QPushButton:hover {
+                background: #9e533d;
+            }
+            QPushButton:pressed {
+                background: #844230;
+            }
+            QLineEdit, QTextEdit, QDateEdit, QDoubleSpinBox, QComboBox, QTableWidget {
+                background: #fffdf8;
+                border: 1px solid #d9cdbf;
+                border-radius: 10px;
+                padding: 6px 8px;
+            }
+            QTextEdit {
+                padding: 10px 12px;
+            }
+            QHeaderView::section {
+                background: #eadfce;
+                color: #49392d;
+                border: none;
+                border-right: 1px solid #d8cbbb;
+                border-bottom: 1px solid #d8cbbb;
+                padding: 8px;
+                font-weight: 600;
+            }
+            QTableWidget {
+                gridline-color: #eadfce;
+                selection-background-color: #d9a67f;
+                selection-color: #2b211a;
+            }
+            QLabel {
+                font-weight: 600;
+                color: #4b392c;
+            }
+            QSplitter::handle {
+                background: #ddcfbe;
+                height: 8px;
+            }
+            """
+        )
