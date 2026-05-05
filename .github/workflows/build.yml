@@ -20,7 +20,7 @@ jobs:
           - os: windows-latest
             artifact_name: AmwayOrderHelper-windows.zip
             release_name: AmwayOrderHelper-windows
-          - os: macos-13
+          - os: macos-15-intel
             artifact_name: AmwayOrderHelper-macos-intel.tar.gz
             release_name: AmwayOrderHelper-macos-intel
 
