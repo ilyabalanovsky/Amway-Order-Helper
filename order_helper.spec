@@ -5,7 +5,7 @@ from pathlib import Path
 import sys
 
 
-PROJECT_DIR = Path(__file__).resolve().parent
+PROJECT_DIR = Path.cwd()
 ICON_ICO = PROJECT_DIR / "ui" / "amway.ico"
 ICON_ICNS = PROJECT_DIR / "ui" / "amway.icns"
 
