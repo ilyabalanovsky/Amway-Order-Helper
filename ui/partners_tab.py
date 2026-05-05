@@ -109,9 +109,10 @@ class PartnersTab(QWidget):
 
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(12)
+        layout.setContentsMargins(10, 8, 10, 10)
+        layout.setSpacing(8)
         filters = QHBoxLayout()
+        filters.setSpacing(8)
         self.search = QLineEdit()
         self.search.setPlaceholderText("Поиск по ФИО")
         self.group_filter = QComboBox()
@@ -122,6 +123,8 @@ class PartnersTab(QWidget):
         layout.addLayout(filters)
 
         form = QFormLayout()
+        form.setHorizontalSpacing(10)
+        form.setVerticalSpacing(6)
         self.name_edit = QLineEdit()
         self.group_combo = QComboBox()
         self.comment_edit = QLineEdit()
@@ -131,6 +134,7 @@ class PartnersTab(QWidget):
         layout.addLayout(form)
 
         buttons = QHBoxLayout()
+        buttons.setSpacing(8)
         add_partner = QPushButton("Добавить / обновить партнёра")
         add_bulk = QPushButton("Добавить пачку партнёров")
         add_group = QPushButton("Добавить группу")

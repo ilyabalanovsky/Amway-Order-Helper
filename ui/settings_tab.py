@@ -22,9 +22,11 @@ class SettingsTab(QWidget):
 
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(12)
+        layout.setContentsMargins(10, 8, 10, 10)
+        layout.setSpacing(8)
         form = QFormLayout()
+        form.setHorizontalSpacing(10)
+        form.setVerticalSpacing(6)
         self.output_dir = QLineEdit()
         self.file_template = QLineEdit()
         self.delivery_percent = QLineEdit()
@@ -55,7 +57,8 @@ class SettingsTab(QWidget):
         settings = self.app_context.load_settings()
         self.output_dir.setText(settings.default_output_dir)
         self.file_template.setText(settings.file_name_template)
-        self.delivery_percent.setText(str(settings.default_delivery_percent))
+        delivery_percent = float(settings.default_delivery_percent)
+        self.delivery_percent.setText(str(int(delivery_percent * 100 if delivery_percent <= 1 else delivery_percent)))
         self.expenses.setText(str(settings.default_expenses))
         self.dispatch_city.setText(settings.default_dispatch_city)
         self.sender.setText(settings.default_sender)
@@ -67,7 +70,8 @@ class SettingsTab(QWidget):
         settings = self.app_context.load_settings()
         settings.default_output_dir = self.output_dir.text().strip()
         settings.file_name_template = self.file_template.text().strip()
-        settings.default_delivery_percent = Decimal(self.delivery_percent.text().strip() or "0.06")
+        raw_delivery = Decimal(self.delivery_percent.text().strip() or "6")
+        settings.default_delivery_percent = raw_delivery / Decimal("100") if raw_delivery > 1 else raw_delivery
         settings.default_expenses = Decimal(self.expenses.text().strip() or "10")
         settings.default_dispatch_city = self.dispatch_city.text().strip()
         settings.default_sender = self.sender.text().strip()
@@ -75,8 +79,10 @@ class SettingsTab(QWidget):
         settings.warn_on_total_mismatch = self.warn_on_total_mismatch.isChecked()
         settings.block_export_on_unknown_partner = self.block_unknown.isChecked()
         self.app_context.save_settings(settings)
+        self.app_context.main_window.order_tab.apply_default_settings()
         QMessageBox.information(self, "Сохранено", "Настройки обновлены.")
 
     def reset(self) -> None:
         self.app_context.reset_settings()
+        self.app_context.main_window.order_tab.apply_default_settings()
         self.load()

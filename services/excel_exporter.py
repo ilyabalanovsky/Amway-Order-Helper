@@ -62,8 +62,8 @@ BLUE = "FF2E75B5"
 RED = "FFC00000"
 GREEN = "FF00B050"
 NUM_FORMAT = "#,##0"
-TEXT_ALIGN = Alignment(horizontal="left")
-CENTER_ALIGN = Alignment(horizontal="center")
+TEXT_ALIGN = Alignment(horizontal="right", vertical="bottom")
+CENTER_ALIGN = Alignment(horizontal="right", vertical="bottom")
 HEADER_ALIGN = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
 HEADER_COLOR_BY_COL = {
@@ -171,6 +171,7 @@ class ExcelExporter:
         ws["R2"] = float(order.tenge_rate)
         ws["S2"] = float(order.tenge_rate_fact)
         ws["T3"] = float(order.expenses)
+        ws["K2"].number_format = "0.00%"
 
     def _write_item_row(self, ws: Worksheet, row: int, index: int, item: OrderItem) -> None:
         ws[f"A{row}"] = index
@@ -249,6 +250,7 @@ class ExcelExporter:
         for column, value in footer_labels.items():
             ws[f"{column}{label_row}"] = value
             ws[f"{column}{label_row}"].font = Font(bold=True)
+            ws[f"{column}{label_row}"].alignment = CENTER_ALIGN
 
         second_group_total = total_rows[1] if len(total_rows) > 1 else None
         first_group_total = total_rows[0] if total_rows else None
@@ -284,6 +286,8 @@ class ExcelExporter:
 
         for row in range(start_row, bcc_balance_row + 1):
             ws[f"B{row}"].font = Font(bold=True)
+            ws[f"B{row}"].alignment = TEXT_ALIGN
+            ws[f"C{row}"].alignment = TEXT_ALIGN
         self._style_footer_values(ws, paid_row, balance_row, fact_balance_row, bcc_row, bcc_balance_row)
 
     def _style_body_row(self, ws: Worksheet, row: int) -> None:

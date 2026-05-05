@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtWidgets import QMainWindow, QTabWidget
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon, QPixmap
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QMainWindow, QTabWidget, QVBoxLayout, QWidget
 
 from db.database import Database
 from db.repositories import OrderRepository, PartnerGroupRepository, PartnerRepository, SettingsRepository
@@ -96,11 +98,21 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("Order Helper")
         self.resize(1400, 900)
+        icon_path = base_dir / "ui" / "amway.ico"
+        if icon_path.exists():
+            self.setWindowIcon(QIcon(str(icon_path)))
         self.database = Database(database_path)
         self.database.initialize()
         self.context = AppContext(self.database, base_dir, self)
+        self.central = QWidget()
+        self.central_layout = QVBoxLayout(self.central)
+        self.central_layout.setContentsMargins(10, 8, 10, 10)
+        self.central_layout.setSpacing(8)
+        self.header = self._build_header(icon_path)
         self.tabs = QTabWidget()
-        self.setCentralWidget(self.tabs)
+        self.central_layout.addWidget(self.header)
+        self.central_layout.addWidget(self.tabs)
+        self.setCentralWidget(self.central)
 
         self.order_tab = OrderTab(self.context)
         self.partners_tab = PartnersTab(self.context)
@@ -115,6 +127,31 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.history_tab, "История заказов")
         self.tabs.addTab(self.settings_tab, "Настройки")
         self._apply_styles()
+
+    def _build_header(self, icon_path: Path) -> QWidget:
+        header = QWidget()
+        header.setObjectName("appHeader")
+        layout = QHBoxLayout(header)
+        layout.setContentsMargins(14, 10, 14, 10)
+        layout.setSpacing(10)
+
+        icon_label = QLabel()
+        icon_label.setObjectName("headerIcon")
+        if icon_path.exists():
+            pixmap = QPixmap(str(icon_path)).scaled(
+                28,
+                28,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+            icon_label.setPixmap(pixmap)
+
+        title = QLabel("Amway Order Helper")
+        title.setObjectName("headerTitle")
+        layout.addWidget(icon_label)
+        layout.addWidget(title)
+        layout.addStretch(1)
+        return header
 
     def show_history_tab(self) -> None:
         self.tabs.setCurrentWidget(self.history_tab)
@@ -147,6 +184,22 @@ class MainWindow(QMainWindow):
             QMainWindow {
                 background: #edf5ff;
             }
+            QWidget#appHeader {
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 1, y2: 0,
+                    stop: 0 #edf6ff, stop: 1 #f9fcff
+                );
+                border: 1px solid #d5e4f7;
+                border-radius: 14px;
+            }
+            QLabel#headerTitle {
+                font-size: 18px;
+                font-weight: 700;
+                color: #1f4f7b;
+            }
+            QLabel#headerIcon {
+                background: transparent;
+            }
             QTabWidget::pane {
                 border: 1px solid #c9dcf3;
                 border-radius: 14px;
@@ -157,10 +210,10 @@ class MainWindow(QMainWindow):
                 background: #dcecff;
                 color: #42627f;
                 border: 1px solid #c9dcf3;
-                padding: 10px 16px;
-                margin-right: 6px;
-                border-top-left-radius: 10px;
-                border-top-right-radius: 10px;
+                padding: 7px 14px;
+                margin-right: 4px;
+                border-top-left-radius: 9px;
+                border-top-right-radius: 9px;
             }
             QTabBar::tab:selected {
                 background: white;
@@ -198,7 +251,7 @@ class MainWindow(QMainWindow):
                 border: none;
                 border-right: 1px solid #d4e4f8;
                 border-bottom: 1px solid #d4e4f8;
-                padding: 8px;
+                padding: 6px;
                 font-weight: 600;
             }
             QTableWidget {

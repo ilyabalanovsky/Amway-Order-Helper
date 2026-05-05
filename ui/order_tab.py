@@ -3,8 +3,8 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QColor
+from PySide6.QtCore import Qt, QUrl, Signal
+from PySide6.QtGui import QColor, QDesktopServices
 from PySide6.QtWidgets import (
     QDateEdit,
     QDoubleSpinBox,
@@ -37,18 +37,21 @@ class OrderTab(QWidget):
         self.parser = OrderTextParser()
         self.parsed_order = ParsedOrder()
         self._build_ui()
+        self.apply_default_settings()
 
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
-        root.setContentsMargins(16, 16, 16, 16)
-        root.setSpacing(12)
+        root.setContentsMargins(10, 8, 10, 10)
+        root.setSpacing(8)
         splitter = QSplitter(Qt.Orientation.Vertical)
         root.addWidget(splitter)
 
         top = QWidget()
         top_layout = QVBoxLayout(top)
+        top_layout.setContentsMargins(0, 0, 0, 0)
+        top_layout.setSpacing(6)
         self.text_edit = QTextEdit()
-        self.text_edit.setMinimumHeight(180)
+        self.text_edit.setMinimumHeight(150)
         self.parse_button = QPushButton("Запустить парсинг")
         self.parse_button.clicked.connect(self.parse_order)
         top_layout.addWidget(QLabel("Текст с расширения (с названием полей)"))
@@ -58,7 +61,11 @@ class OrderTab(QWidget):
 
         bottom = QWidget()
         bottom_layout = QVBoxLayout(bottom)
+        bottom_layout.setContentsMargins(0, 0, 0, 0)
+        bottom_layout.setSpacing(8)
         form = QFormLayout()
+        form.setHorizontalSpacing(10)
+        form.setVerticalSpacing(6)
         self.order_date = QDateEdit()
         self.order_date.setCalendarPopup(True)
         self.order_date.setDate(date.today())
@@ -88,6 +95,7 @@ class OrderTab(QWidget):
         bottom_layout.addWidget(self.table)
 
         buttons = QHBoxLayout()
+        buttons.setSpacing(8)
         save_btn = QPushButton("Сохранить заказ")
         history_btn = QPushButton("Открыть заказ из истории")
         export_new_btn = QPushButton("Сформировать новый Excel-файл")
@@ -174,6 +182,16 @@ class OrderTab(QWidget):
             return None
         return Decimal(item.text().replace(",", "."))
 
+    def apply_default_settings(self) -> None:
+        settings = self.app_context.load_settings()
+        if settings.default_dispatch_city and not self.dispatch_city.text().strip():
+            self.dispatch_city.setText(settings.default_dispatch_city)
+        if settings.default_sender and not self.sender.text().strip():
+            self.sender.setText(settings.default_sender)
+        delivery_percent = float(settings.default_delivery_percent)
+        self.delivery_percent.setValue(delivery_percent * 100 if delivery_percent <= 1 else delivery_percent)
+        self.expenses.setValue(float(settings.default_expenses))
+
     def save_order(self) -> None:
         order = self._collect_order()
         self.app_context.save_order(order)
@@ -193,6 +211,7 @@ class OrderTab(QWidget):
         if not path:
             return
         result = self.app_context.exporter.export_new(order, self.app_context.to_path(path))
+        self._open_export_if_enabled(result.path)
         QMessageBox.information(self, "Готово", f"Файл сохранён:\n{result.path}")
 
     def export_append(self) -> None:
@@ -212,4 +231,11 @@ class OrderTab(QWidget):
             self.app_context.to_path(source),
             self.app_context.to_path(target),
         )
+        self._open_export_if_enabled(result.path)
         QMessageBox.information(self, "Готово", f"Лист добавлен:\n{result.path}")
+
+    def _open_export_if_enabled(self, path) -> None:
+        settings = self.app_context.load_settings()
+        if not settings.open_after_export:
+            return
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(path)))

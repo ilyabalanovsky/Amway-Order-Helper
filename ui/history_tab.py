@@ -23,9 +23,10 @@ class HistoryTab(QWidget):
 
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(12)
+        layout.setContentsMargins(10, 8, 10, 10)
+        layout.setSpacing(8)
         top = QHBoxLayout()
+        top.setSpacing(8)
         self.search = QLineEdit()
         self.search.setPlaceholderText("Поиск по номеру, дате, отправителю")
         refresh = QPushButton("Обновить")
