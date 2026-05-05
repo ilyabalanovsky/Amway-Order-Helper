@@ -6,6 +6,9 @@ on:
     tags:
       - "v*"
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build on ${{ matrix.os }}
@@ -15,11 +18,11 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            artifact_name: AmwayOrderHelper-windows
-            artifact_path: dist/AmwayOrderHelper.exe
-          - os: macos-latest
-            artifact_name: AmwayOrderHelper-macos
-            artifact_path: dist/AmwayOrderHelper
+            artifact_name: AmwayOrderHelper-windows.zip
+            release_name: AmwayOrderHelper-windows
+          - os: macos-13
+            artifact_name: AmwayOrderHelper-macos-intel.tar.gz
+            release_name: AmwayOrderHelper-macos-intel
 
     steps:
       - name: Checkout repository
@@ -38,11 +41,24 @@ jobs:
       - name: Build application
         run: python build.py
 
+      - name: Package Windows artifact
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path dist/AmwayOrderHelper.exe -DestinationPath dist/${{ matrix.artifact_name }} -Force
+
+      - name: Package macOS artifact
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          chmod +x dist/AmwayOrderHelper
+          tar -czf dist/${{ matrix.artifact_name }} -C dist AmwayOrderHelper
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact_name }}
-          path: ${{ matrix.artifact_path }}
+          name: ${{ matrix.release_name }}
+          path: dist/${{ matrix.artifact_name }}
           if-no-files-found: error
 
   release:
@@ -57,18 +73,9 @@ jobs:
         with:
           path: artifacts
 
-      - name: Zip artifacts
-        shell: bash
-        run: |
-          cd artifacts
-          for dir in */ ; do
-            name="${dir%/}"
-            cd "$name"
-            zip -r "../${name}.zip" .
-            cd ..
-          done
-
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/*.zip
+          files: |
+            artifacts/**/*.zip
+            artifacts/**/*.tar.gz
