@@ -146,10 +146,10 @@ class OrderTab(QWidget):
             form.addWidget(widget, row, column + 1)
         bottom_layout.addLayout(form)
 
-        self.table = QTableWidget(0, 11)
+        self.table = QTableWidget(0, 9)
         self.table.setHorizontalHeaderLabels([
             "№", "ФИО", "Группа", "Сумма", "Скидка", "Со скидкой",
-            "Рег. взнос", "Доставка (%)", "Оплатили", "Перевели", "Ошибка",
+            "Рег. взнос", "Доставка (%)", "Ошибка",
         ])
         self.table.verticalHeader().setVisible(False)
         header = self.table.horizontalHeader()
@@ -157,9 +157,9 @@ class OrderTab(QWidget):
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-        for column in range(3, 10):
+        for column in range(3, 8):
             header.setSectionResizeMode(column, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(10, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(8, QHeaderView.ResizeMode.Stretch)
         bottom_layout.addWidget(self.table)
 
         buttons = QHBoxLayout()
@@ -218,7 +218,7 @@ class OrderTab(QWidget):
             QMessageBox.warning(self, "Результат парсинга", "\n".join(messages))
 
     def _fill_table(self) -> None:
-        self.table.setColumnCount(11)
+        self.table.setColumnCount(9)
         self.table.setRowCount(len(self.parsed_order.items))
         group_map = self.app_context.get_group_name_map()
         for row, item in enumerate(self.parsed_order.items):
@@ -232,13 +232,11 @@ class OrderTab(QWidget):
                 str(item.amount_with_discount_tenge),
                 "" if item.registration_fee is None else str(item.registration_fee),
                 "" if item.delivery_percent is None else str(item.delivery_percent),
-                "" if item.paid_rub is None else str(item.paid_rub),
-                "" if item.transferred_rub is None else str(item.transferred_rub),
                 item.parse_error,
             ]
             for col, value in enumerate(values):
                 cell = QTableWidgetItem(value)
-                if col == 10 and value:
+                if col == 8 and value:
                     cell.setBackground(Qt.GlobalColor.yellow)
                     cell.setForeground(QColor("black"))
                 self.table.setItem(row, col, cell)
@@ -250,8 +248,6 @@ class OrderTab(QWidget):
             item.group_id = group_id_by_name.get(item.group_name or "", item.group_id)
             item.registration_fee = self._decimal_or_none(row, 6)
             item.delivery_percent = self._decimal_or_none(row, 7)
-            item.paid_rub = self._decimal_or_none(row, 8)
-            item.transferred_rub = self._decimal_or_none(row, 9)
         return OrderService.build_order(
             self.parsed_order,
             order_number=self.order_number.text().strip(),

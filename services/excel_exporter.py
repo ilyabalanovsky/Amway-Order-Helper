@@ -36,21 +36,21 @@ HEADERS = [
 
 COLUMN_WIDTHS = {
     "A": 3.2,
-    "B": 22.7,
-    "C": 10.7,
-    "D": 6.2,
+    "B": 28.0,
+    "C": 12.5,
+    "D": 8.5,
     "E": 9.5,
-    "F": 9.0,
-    "G": 9.2,
-    "H": 8.7,
-    "I": 10.0,
+    "F": 11.5,
+    "G": 11.5,
+    "H": 9.5,
+    "I": 12.0,
     "J": 9.2,
     "K": 8.7,
-    "L": 10.2,
+    "L": 16.0,
     "M": 8.2,
-    "N": 8.2,
-    "O": 9.2,
-    "P": 9.2,
+    "N": 11.5,
+    "O": 18.5,
+    "P": 10.5,
     "Q": 11.0,
     "R": 5.2,
     "S": 5.7,
@@ -63,8 +63,9 @@ RED = "FFC00000"
 GREEN = "FF00B050"
 NUM_FORMAT = "#,##0"
 TEXT_ALIGN = Alignment(horizontal="right", vertical="bottom")
+LEFT_ALIGN = Alignment(horizontal="left", vertical="bottom")
 CENTER_ALIGN = Alignment(horizontal="right", vertical="bottom")
-HEADER_ALIGN = Alignment(horizontal="center", vertical="center", wrap_text=True)
+HEADER_ALIGN = Alignment(horizontal="right", vertical="bottom", wrap_text=True)
 
 HEADER_COLOR_BY_COL = {
     "C": BLUE,
@@ -293,7 +294,7 @@ class ExcelExporter:
     def _style_body_row(self, ws: Worksheet, row: int) -> None:
         for col in range(1, 21):
             cell = ws.cell(row, col)
-            cell.alignment = TEXT_ALIGN if col == 2 else CENTER_ALIGN
+            cell.alignment = LEFT_ALIGN if col == 2 else CENTER_ALIGN
             color = BODY_COLOR_BY_COL.get(col)
             if color:
                 cell.font = Font(color=color)
@@ -305,7 +306,7 @@ class ExcelExporter:
             cell = ws.cell(row, col)
             color = BODY_COLOR_BY_COL.get(col)
             cell.font = Font(bold=True, color=color) if color else Font(bold=True)
-            cell.alignment = TEXT_ALIGN if col == 2 else CENTER_ALIGN
+            cell.alignment = LEFT_ALIGN if col == 2 else CENTER_ALIGN
             if col >= 3:
                 cell.number_format = NUM_FORMAT
 
@@ -335,7 +336,7 @@ class ExcelExporter:
                 cell = ws[f"{column}{row}"]
                 if cell.value is None:
                     continue
-                cell.font = Font(color=color)
+                cell.font = Font(bold=True, color=color)
                 cell.alignment = CENTER_ALIGN
                 cell.number_format = NUM_FORMAT
 

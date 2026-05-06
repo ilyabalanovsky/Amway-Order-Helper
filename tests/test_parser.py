@@ -155,3 +155,87 @@ def test_parser_does_not_warn_when_api_totals_match_sum_of_carts() -> None:
     parsed = OrderTextParser().parse_json_payload(payload)
     assert not parsed.errors
     assert not parsed.warnings
+
+
+def test_parser_extracts_registration_fee_from_json_entries() -> None:
+    payload = {
+        "orderData": {
+            "code": "1",
+            "created": 1777832668031,
+            "allCartsTotalPrice": {"value": 18300},
+            "grandTotalDiscount": {"value": 0},
+            "subTotal": {"value": 18300},
+            "totalPrice": {"value": 18300},
+            "totalDiscounts": {"value": 0},
+            "orderedBy": {
+                "firstName": "ИГОРЬ",
+                "lastName": "БАЛАНОВСКИЙ",
+                "account": {"code": "2062140"},
+            },
+            "entries": [
+                {
+                    "totalPrice": {"value": 8300},
+                    "product": {"lynxServiceType": "REGISTRATION_FEE"},
+                }
+            ],
+            "subCarts": [
+                {
+                    "subTotal": {"value": 10000},
+                    "totalPrice": {"value": 10000},
+                    "grandTotalDiscount": {"value": 0},
+                    "orderedBy": {
+                        "firstName": "НАДЕЖДА",
+                        "lastName": "МЕНЯЙЛЕНКО",
+                        "account": {"code": "7279577"},
+                    },
+                },
+            ],
+        }
+    }
+    parsed = OrderTextParser().parse_json_payload(payload)
+    assert not parsed.errors
+    assert parsed.items[0].registration_fee == 8300
+
+
+def test_parser_sums_registration_and_renewal_fees_into_same_column() -> None:
+    payload = {
+        "orderData": {
+            "code": "1",
+            "created": 1777832668031,
+            "allCartsTotalPrice": {"value": 28300},
+            "grandTotalDiscount": {"value": 0},
+            "subTotal": {"value": 28300},
+            "totalPrice": {"value": 28300},
+            "totalDiscounts": {"value": 0},
+            "orderedBy": {
+                "firstName": "ИГОРЬ",
+                "lastName": "БАЛАНОВСКИЙ",
+                "account": {"code": "2062140"},
+            },
+            "entries": [
+                {
+                    "totalPrice": {"value": 8300},
+                    "product": {"lynxServiceType": "REGISTRATION_FEE", "name": "Регистрационный взнос"},
+                },
+                {
+                    "totalPrice": {"value": 10000},
+                    "product": {"lynxServiceType": "RENEWAL_FEE", "name": "Позднее продление"},
+                }
+            ],
+            "subCarts": [
+                {
+                    "subTotal": {"value": 10000},
+                    "totalPrice": {"value": 10000},
+                    "grandTotalDiscount": {"value": 0},
+                    "orderedBy": {
+                        "firstName": "НАДЕЖДА",
+                        "lastName": "МЕНЯЙЛЕНКО",
+                        "account": {"code": "7279577"},
+                    },
+                },
+            ],
+        }
+    }
+    parsed = OrderTextParser().parse_json_payload(payload)
+    assert not parsed.errors
+    assert parsed.items[0].registration_fee == 18300

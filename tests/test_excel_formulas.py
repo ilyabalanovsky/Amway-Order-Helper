@@ -55,3 +55,6 @@ def test_exporter_writes_expected_formulas(tmp_path) -> None:
     assert ws["F12"].font.color.rgb == "FF2E75B5"
     assert ws["H12"].font.color.rgb == "FFC00000"
     assert ws["I12"].font.color.rgb == "FF00B050"
+    assert ws["B4"].alignment.horizontal == "left"
+    assert ws["B1"].alignment.horizontal == "center"
+    assert ws["F12"].font.bold is True

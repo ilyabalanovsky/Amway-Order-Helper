@@ -257,8 +257,27 @@ class OrderTextParser:
             amount_tenge=amount,
             discount_tenge=discount,
             amount_with_discount_tenge=with_discount,
+            registration_fee=self._extract_registration_fee(subcart),
             sort_order=index,
         )
+
+    def _extract_registration_fee(self, subcart: dict) -> Decimal | None:
+        total = Decimal("0")
+        found = False
+        for entry in subcart.get("entries") or []:
+            if not isinstance(entry, dict):
+                continue
+            product = entry.get("product") or {}
+            service_type = str(product.get("lynxServiceType") or "")
+            product_name = str(product.get("name") or "").casefold()
+            if service_type not in {"REGISTRATION_FEE", "RENEWAL_FEE"} and "продлен" not in product_name:
+                continue
+            value = self._money_value(entry.get("totalPrice")) or self._money_value(entry.get("basePrice"))
+            if value is None:
+                continue
+            total += value
+            found = True
+        return total if found else None
 
     @staticmethod
     def _money_value(value) -> Decimal | None:
