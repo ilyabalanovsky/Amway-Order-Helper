@@ -2,14 +2,16 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal
+from pathlib import Path
 
 from PySide6.QtCore import Qt, QUrl, Signal
 from PySide6.QtGui import QColor, QDesktopServices
 from PySide6.QtWidgets import (
+    QFileDialog,
+    QFrame,
     QDateEdit,
     QDoubleSpinBox,
-    QFileDialog,
-    QFormLayout,
+    QGridLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -21,11 +23,56 @@ from PySide6.QtWidgets import (
     QTextEdit,
     QVBoxLayout,
     QWidget,
+    QHeaderView,
 )
 
 from models import Order, ParsedOrder
 from services.order_service import OrderService
 from services.parser import OrderTextParser
+
+
+class JsonDropZone(QFrame):
+    file_dropped = Signal(str)
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.setAcceptDrops(True)
+        self.setObjectName("jsonDropZone")
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(18, 14, 18, 14)
+        layout.setSpacing(2)
+        self.title_label = QLabel("Перетащите сюда JSON с расширения")
+        self.title_label.setObjectName("dropZoneTitle")
+        self.info_label = QLabel("или нажмите кнопку ниже, чтобы выбрать файл")
+        self.info_label.setObjectName("dropZoneInfo")
+        self.file_label = QLabel("Файл не выбран")
+        self.file_label.setObjectName("dropZoneFile")
+        layout.addWidget(self.title_label)
+        layout.addWidget(self.info_label)
+        layout.addWidget(self.file_label)
+
+    def set_file_name(self, file_name: str) -> None:
+        self.file_label.setText(file_name or "Файл не выбран")
+
+    def dragEnterEvent(self, event) -> None:  # type: ignore[override]
+        if event.mimeData().hasUrls():
+            urls = [url for url in event.mimeData().urls() if url.isLocalFile()]
+            if urls and urls[0].toLocalFile().lower().endswith(".json"):
+                event.acceptProposedAction()
+                return
+        event.ignore()
+
+    def dropEvent(self, event) -> None:  # type: ignore[override]
+        urls = [url for url in event.mimeData().urls() if url.isLocalFile()]
+        if not urls:
+            event.ignore()
+            return
+        path = urls[0].toLocalFile()
+        if not path.lower().endswith(".json"):
+            event.ignore()
+            return
+        self.file_dropped.emit(path)
+        event.acceptProposedAction()
 
 
 class OrderTab(QWidget):
@@ -36,6 +83,7 @@ class OrderTab(QWidget):
         self.app_context = app_context
         self.parser = OrderTextParser()
         self.parsed_order = ParsedOrder()
+        self.current_json_text = ""
         self._build_ui()
         self.apply_default_settings()
 
@@ -50,21 +98,26 @@ class OrderTab(QWidget):
         top_layout = QVBoxLayout(top)
         top_layout.setContentsMargins(0, 0, 0, 0)
         top_layout.setSpacing(6)
-        self.text_edit = QTextEdit()
-        self.text_edit.setMinimumHeight(150)
+        self.drop_zone = JsonDropZone()
+        self.drop_zone.file_dropped.connect(self.load_json_file)
+        top_layout.addWidget(self.drop_zone)
+        top_buttons = QHBoxLayout()
+        top_buttons.setSpacing(8)
+        self.choose_file_button = QPushButton("Выбрать JSON-файл")
+        self.choose_file_button.clicked.connect(self.choose_json_file)
         self.parse_button = QPushButton("Запустить парсинг")
-        self.parse_button.clicked.connect(self.parse_order)
-        top_layout.addWidget(QLabel("Текст с расширения (с названием полей)"))
-        top_layout.addWidget(self.text_edit)
-        top_layout.addWidget(self.parse_button)
+        self.parse_button.clicked.connect(self.parse_loaded_json)
+        top_buttons.addWidget(self.choose_file_button)
+        top_buttons.addWidget(self.parse_button)
+        top_layout.addLayout(top_buttons)
         splitter.addWidget(top)
 
         bottom = QWidget()
         bottom_layout = QVBoxLayout(bottom)
         bottom_layout.setContentsMargins(0, 0, 0, 0)
         bottom_layout.setSpacing(8)
-        form = QFormLayout()
-        form.setHorizontalSpacing(10)
+        form = QGridLayout()
+        form.setHorizontalSpacing(12)
         form.setVerticalSpacing(6)
         self.order_date = QDateEdit()
         self.order_date.setCalendarPopup(True)
@@ -76,14 +129,21 @@ class OrderTab(QWidget):
         self.tenge_rate_fact = self._decimal_box(6.0, decimals=3, step=0.001)
         self.delivery_percent = self._decimal_box(6.0, decimals=0, step=1.0)
         self.expenses = self._decimal_box(10.0)
-        form.addRow("Дата заказа", self.order_date)
-        form.addRow("Номер заказа", self.order_number)
-        form.addRow("Город отправки", self.dispatch_city)
-        form.addRow("Отправитель", self.sender)
-        form.addRow("Курс тенге", self.tenge_rate)
-        form.addRow("Курс тенге фактический", self.tenge_rate_fact)
-        form.addRow("Процент доставки", self.delivery_percent)
-        form.addRow("Расходы", self.expenses)
+        fields = [
+            ("Дата заказа", self.order_date),
+            ("Номер заказа", self.order_number),
+            ("Город отправки", self.dispatch_city),
+            ("Отправитель", self.sender),
+            ("Курс тенге", self.tenge_rate),
+            ("Курс тенге фактический", self.tenge_rate_fact),
+            ("Процент доставки", self.delivery_percent),
+            ("Расходы", self.expenses),
+        ]
+        for index, (label_text, widget) in enumerate(fields):
+            row = index // 2
+            column = (index % 2) * 2
+            form.addWidget(QLabel(label_text), row, column)
+            form.addWidget(widget, row, column + 1)
         bottom_layout.addLayout(form)
 
         self.table = QTableWidget(0, 11)
@@ -92,19 +152,29 @@ class OrderTab(QWidget):
             "Рег. взнос", "Доставка (%)", "Оплатили", "Перевели", "Ошибка",
         ])
         self.table.verticalHeader().setVisible(False)
+        header = self.table.horizontalHeader()
+        header.setStretchLastSection(False)
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        for column in range(3, 10):
+            header.setSectionResizeMode(column, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(10, QHeaderView.ResizeMode.Stretch)
         bottom_layout.addWidget(self.table)
 
         buttons = QHBoxLayout()
         buttons.setSpacing(8)
-        save_btn = QPushButton("Сохранить заказ")
-        history_btn = QPushButton("Открыть заказ из истории")
-        export_new_btn = QPushButton("Сформировать новый Excel-файл")
-        export_append_btn = QPushButton("Добавить лист в существующий Excel-файл")
+        save_btn = QPushButton("Сохранить в истории")
+        history_btn = QPushButton("Открыть из истории")
+        export_new_btn = QPushButton("Новый Excel файл")
+        export_append_btn = QPushButton("Новый лист в Excel файле")
+        summary_btn = QPushButton("Создать сводную таблицу")
         save_btn.clicked.connect(self.save_order)
         history_btn.clicked.connect(self.open_from_history)
         export_new_btn.clicked.connect(self.export_new)
         export_append_btn.clicked.connect(self.export_append)
-        for button in (save_btn, history_btn, export_new_btn, export_append_btn):
+        summary_btn.clicked.connect(self.export_product_summary)
+        for button in (save_btn, history_btn, export_new_btn, export_append_btn, summary_btn):
             buttons.addWidget(button)
         bottom_layout.addLayout(buttons)
         splitter.addWidget(bottom)
@@ -118,11 +188,30 @@ class OrderTab(QWidget):
         box.setValue(value)
         return box
 
-    def parse_order(self) -> None:
-        parsed = self.parser.parse(self.text_edit.toPlainText())
+    def choose_json_file(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(self, "Выберите JSON ответа API", "", "JSON (*.json)")
+        if not path:
+            return
+        self.load_json_file(path)
+
+    def load_json_file(self, path: str) -> None:
+        try:
+            raw = Path(path).read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            raw = Path(path).read_text(encoding="utf-8-sig")
+        except OSError as exc:
+            QMessageBox.warning(self, "Ошибка открытия", f"Не удалось открыть файл:\n{exc}")
+            return
+        self.current_json_text = raw
+        self.drop_zone.set_file_name(Path(path).name)
+        self.parse_loaded_json()
+
+    def parse_loaded_json(self) -> None:
+        parsed = self.parser.parse_json_text(self.current_json_text)
         with self.app_context.database.connect() as conn:
             enriched = OrderService(self.app_context.partner_repo(conn)).enrich_with_partners(parsed)
         self.parsed_order = enriched
+        self._apply_parsed_metadata()
         self._fill_table()
         messages = enriched.errors + enriched.warnings
         if messages:
@@ -173,7 +262,7 @@ class OrderTab(QWidget):
             tenge_rate_fact=Decimal(str(self.tenge_rate_fact.value())),
             delivery_percent=Decimal(str(self.delivery_percent.value())),
             expenses=Decimal(str(self.expenses.value())),
-            raw_text=self.text_edit.toPlainText(),
+            raw_text=self.current_json_text,
         )
 
     def _decimal_or_none(self, row: int, column: int):
@@ -184,13 +273,19 @@ class OrderTab(QWidget):
 
     def apply_default_settings(self) -> None:
         settings = self.app_context.load_settings()
-        if settings.default_dispatch_city and not self.dispatch_city.text().strip():
-            self.dispatch_city.setText(settings.default_dispatch_city)
-        if settings.default_sender and not self.sender.text().strip():
-            self.sender.setText(settings.default_sender)
         delivery_percent = float(settings.default_delivery_percent)
         self.delivery_percent.setValue(delivery_percent * 100 if delivery_percent <= 1 else delivery_percent)
         self.expenses.setValue(float(settings.default_expenses))
+
+    def _apply_parsed_metadata(self) -> None:
+        if self.parsed_order.order_number:
+            self.order_number.setText(self.parsed_order.order_number)
+        if self.parsed_order.order_date:
+            self.order_date.setDate(self.parsed_order.order_date)
+        if self.parsed_order.dispatch_city:
+            self.dispatch_city.setText(self.parsed_order.dispatch_city)
+        if self.parsed_order.sender:
+            self.sender.setText(self.parsed_order.sender)
 
     def save_order(self) -> None:
         order = self._collect_order()
@@ -233,6 +328,31 @@ class OrderTab(QWidget):
         )
         self._open_export_if_enabled(result.path)
         QMessageBox.information(self, "Готово", f"Лист добавлен:\n{result.path}")
+
+    def export_product_summary(self) -> None:
+        if not self.current_json_text.strip():
+            QMessageBox.warning(self, "Нет данных", "Сначала загрузите JSON заказа.")
+            return
+        default_name = self.order_number.text().strip() or "product_summary"
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Сохранить сводную таблицу",
+            f"{default_name}_summary.xlsx",
+            "Excel (*.xlsx)",
+        )
+        if not path:
+            return
+        try:
+            result = self.app_context.product_summary_exporter.export(
+                self.current_json_text,
+                self.app_context.to_path(path),
+                self.app_context.get_partner_group_map(),
+            )
+        except (ValueError, OSError) as exc:
+            QMessageBox.warning(self, "Ошибка экспорта", str(exc))
+            return
+        self._open_export_if_enabled(result.path)
+        QMessageBox.information(self, "Готово", f"Сводная таблица сохранена:\n{result.path}")
 
     def _open_export_if_enabled(self, path) -> None:
         settings = self.app_context.load_settings()

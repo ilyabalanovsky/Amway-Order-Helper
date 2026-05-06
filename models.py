@@ -65,6 +65,11 @@ class ParsedOrder:
     calculated_totals: ParsedOrderTotals = field(default_factory=ParsedOrderTotals)
     warnings: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
+    order_number: str = ""
+    order_date: date | None = None
+    sender: str = ""
+    dispatch_city: str = ""
+    source_label: str = ""
 
 
 @dataclass(slots=True)

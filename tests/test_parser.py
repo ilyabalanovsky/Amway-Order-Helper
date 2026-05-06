@@ -31,3 +31,127 @@ def test_parser_handles_total_line_with_nonbreaking_spaces() -> None:
     assert not parsed.errors
     assert not parsed.warnings
     assert parsed.totals_from_text is not None
+
+
+def test_parser_parses_json_order_payload() -> None:
+    payload = {
+        "orderData": {
+            "code": "840181440",
+            "created": 1777832668031,
+            "allCartsTotalPrice": {"value": 430581},
+            "grandTotalDiscount": {"value": 69528},
+            "subTotal": {"value": 18487},
+            "totalPrice": {"value": 18487},
+            "orderedBy": {
+                "name": "ИГОРЬ БАЛАНОВСКИЙ",
+                "firstName": "ИГОРЬ",
+                "lastName": "БАЛАНОВСКИЙ",
+                "account": {"code": "2062140"},
+            },
+            "deliveryPointOfService": {
+                "cisCity": {"cityName": "Актобе"},
+            },
+            "subCarts": [
+                {
+                    "subTotal": {"value": 79598},
+                    "totalPrice": {"value": 69598},
+                    "grandTotalDiscount": {"value": 10000},
+                    "orderedBy": {
+                        "firstName": "НАДЕЖДА",
+                        "middleName": "Юрьевна",
+                        "lastName": "МЕНЯЙЛЕНКО",
+                        "account": {"code": "7279577"},
+                    },
+                },
+                {
+                    "subTotal": {"value": 18487},
+                    "totalPrice": {"value": 18487},
+                    "grandTotalDiscount": {"value": 0},
+                    "orderedBy": {
+                        "firstName": "ИГОРЬ",
+                        "lastName": "БАЛАНОВСКИЙ",
+                        "account": {"code": "2062140"},
+                    },
+                },
+            ],
+        }
+    }
+    parsed = OrderTextParser().parse_json_payload(payload)
+    assert not parsed.errors
+    assert parsed.order_number == "840181440"
+    assert parsed.dispatch_city == "Актобе"
+    assert parsed.sender == "Игорь Балановский"
+    assert parsed.items[0].full_name == "Игорь Балановский"
+    assert parsed.items[1].full_name == "Надежда Меняйленко"
+    assert len(parsed.items) == 2
+    assert parsed.calculated_totals.amount_tenge == 98085
+    assert parsed.calculated_totals.discount_tenge == 10000
+    assert parsed.calculated_totals.amount_with_discount_tenge == 88085
+    assert parsed.totals_from_text is not None
+    assert parsed.warnings
+    assert "Сумма заказа" in parsed.warnings[0]
+    assert "Сумма скидок" in parsed.warnings[0]
+    assert "Сумма с учетом скидок" in parsed.warnings[0]
+
+
+def test_parser_removes_patronymic_when_first_name_contains_it() -> None:
+    payload = {
+        "orderData": {
+            "code": "1",
+            "created": 1777832668031,
+            "allCartsTotalPrice": {"value": 100},
+            "grandTotalDiscount": {"value": 0},
+            "subTotal": {"value": 100},
+            "subCarts": [
+                {
+                    "subTotal": {"value": 100},
+                    "totalPrice": {"value": 100},
+                    "grandTotalDiscount": {"value": 0},
+                    "orderedBy": {
+                        "firstName": "НАДЕЖДА Юрьевна",
+                        "middleName": "Юрьевна",
+                        "lastName": "МЕНЯЙЛЕНКО",
+                        "account": {"code": "7279577"},
+                    },
+                }
+            ],
+        }
+    }
+    parsed = OrderTextParser().parse_json_payload(payload)
+    assert not parsed.errors
+    assert parsed.items[0].full_name == "Надежда Меняйленко"
+
+
+def test_parser_does_not_warn_when_api_totals_match_sum_of_carts() -> None:
+    payload = {
+        "orderData": {
+            "code": "1",
+            "created": 1777832668031,
+            "allCartsTotalPrice": {"value": 88085},
+            "grandTotalDiscount": {"value": 10000},
+            "subTotal": {"value": 18487},
+            "totalPrice": {"value": 18487},
+            "totalDiscounts": {"value": 0},
+            "orderedBy": {
+                "firstName": "ИГОРЬ",
+                "lastName": "БАЛАНОВСКИЙ",
+                "account": {"code": "2062140"},
+            },
+            "subCarts": [
+                {
+                    "subTotal": {"value": 79598},
+                    "totalPrice": {"value": 69598},
+                    "grandTotalDiscount": {"value": 10000},
+                    "orderedBy": {
+                        "firstName": "НАДЕЖДА",
+                        "middleName": "Юрьевна",
+                        "lastName": "МЕНЯЙЛЕНКО",
+                        "account": {"code": "7279577"},
+                    },
+                },
+            ],
+        }
+    }
+    parsed = OrderTextParser().parse_json_payload(payload)
+    assert not parsed.errors
+    assert not parsed.warnings

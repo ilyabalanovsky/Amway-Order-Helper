@@ -10,6 +10,7 @@ from db.database import Database
 from db.repositories import OrderRepository, PartnerGroupRepository, PartnerRepository, SettingsRepository
 from models import AppSettings, Order, Partner
 from services.excel_exporter import ExcelExporter
+from services.product_summary_exporter import ProductSummaryExporter
 from services.settings_service import SettingsService
 from ui.history_tab import HistoryTab
 from ui.order_tab import OrderTab
@@ -23,6 +24,7 @@ class AppContext:
         self.base_dir = base_dir
         self.main_window = main_window
         self.exporter = ExcelExporter()
+        self.product_summary_exporter = ProductSummaryExporter()
 
     def to_path(self, value: str) -> Path:
         return Path(value)
@@ -43,6 +45,11 @@ class AppContext:
             PartnerRepository(conn).upsert(partner)
             conn.commit()
 
+    def update_partner(self, partner: Partner) -> None:
+        with self.database.connect() as conn:
+            PartnerRepository(conn).upsert(partner)
+            conn.commit()
+
     def create_group(self, name: str) -> None:
         with self.database.connect() as conn:
             PartnerGroupRepository(conn).create(name)
@@ -55,6 +62,16 @@ class AppContext:
 
     def get_group_name_map(self) -> dict[int, str]:
         return {group.id: group.name for group in self.load_groups() if group.id is not None}
+
+    def get_partner_group_map(self) -> dict[str, str]:
+        group_names = self.get_group_name_map()
+        result: dict[str, str] = {}
+        for partner in self.load_partners():
+            if not partner.normalized_name:
+                continue
+            result[partner.normalized_name] = group_names.get(partner.group_id, "")
+            result[f"{partner.normalized_name}__comment"] = partner.comment or ""
+        return result
 
     def save_order(self, order: Order) -> int:
         with self.database.connect() as conn:
@@ -161,8 +178,9 @@ class MainWindow(QMainWindow):
         if order is None:
             return
         self.tabs.setCurrentWidget(self.order_tab)
-        self.order_tab.text_edit.setPlainText(order.raw_text)
-        self.order_tab.parse_order()
+        self.order_tab.current_json_text = order.raw_text
+        self.order_tab.drop_zone.set_file_name("Сохранённый заказ")
+        self.order_tab.parse_loaded_json()
         self.order_tab.order_number.setText(order.order_number)
         if order.order_date:
             self.order_tab.order_date.setDate(order.order_date)
@@ -199,6 +217,24 @@ class MainWindow(QMainWindow):
             }
             QLabel#headerIcon {
                 background: transparent;
+            }
+            QFrame#jsonDropZone {
+                background: #f8fbff;
+                border: 2px dashed #9fc4ef;
+                border-radius: 14px;
+            }
+            QLabel#dropZoneTitle {
+                font-size: 14px;
+                font-weight: 700;
+                color: #24547f;
+            }
+            QLabel#dropZoneInfo {
+                color: #6686a6;
+                font-weight: 500;
+            }
+            QLabel#dropZoneFile {
+                color: #1f4f7b;
+                font-weight: 600;
             }
             QTabWidget::pane {
                 border: 1px solid #c9dcf3;

@@ -64,6 +64,26 @@ class PartnerRepository:
         return Partner(**dict(row)) if row else None
 
     def upsert(self, partner: Partner) -> int:
+        if partner.id is not None:
+            existing = self.get_by_normalized_name(partner.normalized_name)
+            if existing and existing.id != partner.id:
+                raise ValueError("partner_with_same_name_exists")
+            self.conn.execute(
+                """
+                UPDATE partners
+                SET full_name = ?, normalized_name = ?, group_id = ?, is_active = ?, comment = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (
+                    partner.full_name,
+                    partner.normalized_name,
+                    partner.group_id,
+                    int(partner.is_active),
+                    partner.comment,
+                    partner.id,
+                ),
+            )
+            return int(partner.id)
         existing = self.get_by_normalized_name(partner.normalized_name)
         if existing:
             self.conn.execute(
