@@ -329,11 +329,12 @@ class OrderTab(QWidget):
         if not self.current_json_text.strip():
             QMessageBox.warning(self, "Нет данных", "Сначала загрузите JSON заказа.")
             return
-        default_name = self.order_number.text().strip() or "product_summary"
+        order_number = self.order_number.text().strip() or self.parsed_order.order_number.strip()
+        default_name = f"{order_number}_сводная_таблица" if order_number else "сводная_таблица"
         path, _ = QFileDialog.getSaveFileName(
             self,
             "Сохранить сводную таблицу",
-            f"{default_name}_summary.xlsx",
+            f"{default_name}.xlsx",
             "Excel (*.xlsx)",
         )
         if not path:

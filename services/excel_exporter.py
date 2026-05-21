@@ -36,9 +36,9 @@ HEADERS = [
 
 COLUMN_WIDTHS = {
     "A": 3.2,
-    "B": 28.0,
+    "B": 37.0,
     "C": 12.5,
-    "D": 8.5,
+    "D": 14.17,
     "E": 9.5,
     "F": 11.5,
     "G": 11.5,
@@ -49,7 +49,7 @@ COLUMN_WIDTHS = {
     "L": 16.0,
     "M": 8.2,
     "N": 11.5,
-    "O": 18.5,
+    "O": 8.17,
     "P": 10.5,
     "Q": 11.0,
     "R": 5.2,
@@ -135,8 +135,10 @@ class ExcelExporter:
 
         row = 3
         total_rows: list[int] = []
+        group_total_rows: dict[str, int] = {}
         for group_name, items in self._group_items(order):
             ws.cell(row, 2, group_name).font = Font(bold=True)
+            self._style_group_row(ws, row)
             row += 1
             start_row = row
             for index, item in enumerate(items, start=1):
@@ -144,19 +146,18 @@ class ExcelExporter:
                 row += 1
             self._write_group_total(ws, row, start_row, row - 1)
             total_rows.append(row)
+            group_total_rows[group_name] = row
             row += 1
 
         grand_total_row = row + 1
         self._write_grand_total(ws, grand_total_row, total_rows)
         self._finalize_parameter_formulas(ws, grand_total_row)
-        self._write_footer(ws, order, grand_total_row + 1, total_rows)
+        self._write_footer(ws, order, grand_total_row + 1, total_rows, group_total_rows)
 
     def _setup_sheet(self, ws: Worksheet) -> None:
         ws.freeze_panes = "A2"
         for column, width in COLUMN_WIDTHS.items():
             ws.column_dimensions[column].width = width
-        for hidden_column in ("Y",):
-            ws.column_dimensions[hidden_column].hidden = True
 
     def _write_headers(self, ws: Worksheet) -> None:
         for index, title in enumerate(HEADERS, start=1):
@@ -164,7 +165,7 @@ class ExcelExporter:
             color = HEADER_COLOR_BY_COL.get(get_column_letter(index))
             cell.font = Font(bold=True, color=color) if color else Font(bold=True)
             cell.alignment = HEADER_ALIGN
-        ws.row_dimensions[1].height = 42
+        ws.row_dimensions[1].height = 50
 
     def _write_parameters(self, ws: Worksheet, order: Order) -> None:
         ws["H2"] = float(self._to_fraction(order.delivery_percent))
@@ -221,7 +222,14 @@ class ExcelExporter:
         ws["K2"] = f"=(G{grand_total_row}+T2)/G{grand_total_row}-1"
         ws["T2"] = f"=SUM(T3:T{grand_total_row-1})"
 
-    def _write_footer(self, ws: Worksheet, order: Order, start_row: int, total_rows: list[int]) -> None:
+    def _write_footer(
+        self,
+        ws: Worksheet,
+        order: Order,
+        start_row: int,
+        total_rows: list[int],
+        group_total_rows: dict[str, int],
+    ) -> None:
         ws[f"B{start_row}"] = "Номер заказа:"
         ws[f"C{start_row}"] = order.order_number
         ws[f"B{start_row + 1}"] = "Город отправки:"
@@ -254,7 +262,6 @@ class ExcelExporter:
             ws[f"{column}{label_row}"].alignment = CENTER_ALIGN
 
         second_group_total = total_rows[1] if len(total_rows) > 1 else None
-        first_group_total = total_rows[0] if total_rows else None
 
         ws[f"B{paid_row}"] = "Оплатил:"
         ws[f"C{paid_row}"] = f"=F{grand_total_row}"
@@ -264,12 +271,24 @@ class ExcelExporter:
         ws[f"H{paid_row}"] = f"=F{paid_row}-G{paid_row}"
         ws[f"I{paid_row}"] = f"=H{grand_total_row}"
         ws[f"L{paid_row}"] = f"=K{grand_total_row}"
-        if first_group_total and second_group_total:
-            ws[f"N{paid_row}"] = f"=(H{first_group_total}+H{second_group_total})/6"
-            ws[f"O{paid_row}"] = f"=H{second_group_total}-N{paid_row}"
+        one_percent_group_rows = [
+            group_total_rows[name]
+            for name in group_total_rows
+            if any(
+                marker in name.lower()
+                for marker in (
+                    "\u0435\u0434\u0440\u044b\u0448",
+                    "\u0440\u043e\u0434\u0438\u043e\u043d",
+                    "\u043a\u0440\u0443\u043f\u0438\u043d",
+                )
+            )
+        ]
+        if one_percent_group_rows:
+            refs = "+".join(f"H{group_row}" for group_row in one_percent_group_rows)
+            ws[f"N{paid_row}"] = f"=({refs})/6"
         else:
             ws[f"N{paid_row}"] = 0
-            ws[f"O{paid_row}"] = 0
+        ws[f"O{paid_row}"] = f"=H{second_group_total}-N{paid_row}" if second_group_total else 0
 
         ws[f"B{balance_row}"] = "Остаток:"
         ws[f"C{balance_row}"] = f"=H{paid_row}+I{paid_row}-L{paid_row}-N{paid_row}"
@@ -306,9 +325,14 @@ class ExcelExporter:
             cell = ws.cell(row, col)
             color = BODY_COLOR_BY_COL.get(col)
             cell.font = Font(bold=True, color=color) if color else Font(bold=True)
-            cell.alignment = LEFT_ALIGN if col == 2 else CENTER_ALIGN
+            cell.alignment = TEXT_ALIGN
             if col >= 3:
                 cell.number_format = NUM_FORMAT
+
+    def _style_group_row(self, ws: Worksheet, row: int) -> None:
+        for col in range(1, 21):
+            cell = ws.cell(row, col)
+            cell.alignment = TEXT_ALIGN
 
     def _style_footer_values(
         self,

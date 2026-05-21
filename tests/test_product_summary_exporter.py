@@ -67,11 +67,13 @@ def test_product_summary_exporter_writes_cart_headers_and_products(tmp_path: Pat
     assert worksheet.title == "Лист1"
     assert worksheet["A1"].value == "Заказ номер: 839997175"
     assert "2062140 Ваши Позиции (гр. Балановских)" in str(worksheet["A3"].value)
+    assert "(Организатор)" in str(worksheet["A3"].value)
     assert worksheet["A4"].value == "124106"
     assert worksheet["B4"].value == "Многофункциональная зубная паста"
     assert worksheet["C4"].value == 2
     assert "7027251953 Марина Полякова (гр. Поляковой)" in str(worksheet["A5"].value)
-    assert worksheet["D3"].value == "Организатор"
-    assert worksheet["D5"].value == "Проверить оплату"
+    assert "(Проверить оплату)" in str(worksheet["A5"].value)
+    assert worksheet["D3"].value is None
+    assert worksheet["D5"].value is None
     assert worksheet["A6"].value == "126461"
     assert worksheet["B6"].value == "Очищающий шампунь"

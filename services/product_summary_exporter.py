@@ -6,7 +6,9 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 from openpyxl import Workbook
-from openpyxl.styles import Font
+from openpyxl.cell.rich_text import CellRichText, TextBlock
+from openpyxl.cell.text import InlineFont
+from openpyxl.styles import Border, Font, Side
 
 from services.normalizer import normalize_name
 from services.parser import OrderTextParser
@@ -19,6 +21,14 @@ class ProductSummaryExportResult:
 
 
 class ProductSummaryExporter:
+    DASHED_SIDE = Side(style="dashed", color="FF7A7A7A")
+    DASHED_BORDER = Border(
+        left=DASHED_SIDE,
+        right=DASHED_SIDE,
+        top=DASHED_SIDE,
+        bottom=DASHED_SIDE,
+    )
+
     def export(self, raw_json: str, destination: Path, partner_groups: dict[str, str]) -> ProductSummaryExportResult:
         payload = json.loads(raw_json)
         order = payload.get("orderData")
@@ -30,6 +40,7 @@ class ProductSummaryExporter:
         worksheet.title = "Лист1"
         self._setup_sheet(worksheet)
         self._render_sheet(worksheet, order, partner_groups)
+        self._apply_filled_cell_borders(worksheet)
         workbook.save(destination)
         return ProductSummaryExportResult(destination, worksheet.title)
 
@@ -42,10 +53,7 @@ class ProductSummaryExporter:
             entries = self._extract_product_entries(cart)
             if not entries:
                 continue
-            ws[f"A{row}"] = self._build_cart_header(cart, partner_groups, is_root=is_root)
-            ws[f"D{row}"] = self._partner_comment(cart, partner_groups)
-            ws[f"A{row}"].font = Font(bold=True)
-            ws[f"D{row}"].font = Font(bold=True)
+            self._write_cart_header(ws, row, cart, partner_groups, is_root=is_root)
             row += 1
             for entry in entries:
                 ws.cell(row, 1, self._entry_code(entry))
@@ -58,6 +66,12 @@ class ProductSummaryExporter:
         ws.column_dimensions["B"].width = 32.78
         ws.column_dimensions["C"].width = 5.55
         ws.column_dimensions["D"].width = 51.78
+
+    def _apply_filled_cell_borders(self, ws) -> None:
+        for row in ws.iter_rows():
+            for cell in row:
+                if cell.value not in (None, "") and not bool(cell.font and cell.font.bold):
+                    cell.border = self.DASHED_BORDER
 
     def _iter_carts(self, order: dict):
         yield order, True
@@ -103,6 +117,21 @@ class ProductSummaryExporter:
             f"         {header_core} "
             f"Сумма: {self._fmt_number(amount)} Масса: {self._fmt_number(weight)} Баллы: {self._fmt_number(points)}"
         )
+
+    def _write_cart_header(self, ws, row: int, cart: dict, partner_groups: dict[str, str], *, is_root: bool) -> None:
+        header = self._build_cart_header(cart, partner_groups, is_root=is_root)
+        comment = self._partner_comment(cart, partner_groups).strip()
+        cell = ws[f"A{row}"]
+        if comment:
+            cell.value = CellRichText(
+                [
+                    TextBlock(InlineFont(b=True), header),
+                    TextBlock(InlineFont(b=True, i=True), f" ({comment})"),
+                ]
+            )
+        else:
+            cell.value = header
+        cell.font = Font(bold=True)
 
     def _partner_comment(self, cart: dict, partner_groups: dict[str, str]) -> str:
         ordered_by = cart.get("orderedBy") or {}
