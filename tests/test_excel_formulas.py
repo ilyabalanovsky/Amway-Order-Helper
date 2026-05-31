@@ -43,7 +43,7 @@ def test_exporter_writes_expected_formulas(tmp_path) -> None:
     assert ws["P4"].value is None
     assert ws["M4"].value == 12000
     assert ws["D5"].value == "=SUM(D4:D4)"
-    assert ws["P5"].value == "=SUM(Y4:Y4)"
+    assert ws["P5"].value == "=SUM(P4:P4)"
     assert ws["K2"].value == "=(G7+T2)/G7-1"
     assert ws["K4"].value == "=G4*$K$2"
     assert ws["T2"].value == "=SUM(T3:T6)"
@@ -64,6 +64,7 @@ def test_exporter_writes_expected_formulas(tmp_path) -> None:
     assert ws.column_dimensions["B"].width == 37.0
     assert ws.column_dimensions["D"].width == 14.17
     assert ws.column_dimensions["O"].width == 8.17
+    assert ws.column_dimensions["Y"].width == 10.5
     assert ws.column_dimensions["Y"].hidden is False
     assert ws["F12"].font.bold is True
 

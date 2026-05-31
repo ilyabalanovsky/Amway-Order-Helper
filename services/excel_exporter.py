@@ -55,7 +55,7 @@ COLUMN_WIDTHS = {
     "R": 5.2,
     "S": 5.7,
     "T": 8.5,
-    "Y": 1.2,
+    "Y": 10.5,
 }
 
 BLUE = "FF2E75B5"
@@ -158,6 +158,7 @@ class ExcelExporter:
         ws.freeze_panes = "A2"
         for column, width in COLUMN_WIDTHS.items():
             ws.column_dimensions[column].width = width
+        ws.column_dimensions["Y"].hidden = False
 
     def _write_headers(self, ws: Worksheet) -> None:
         for index, title in enumerate(HEADERS, start=1):
@@ -206,7 +207,7 @@ class ExcelExporter:
         ws[f"B{row}"] = "Всего:"
         for column in "CDEFGHIJKLMNO":
             ws[f"{column}{row}"] = f"=SUM({column}{start_row}:{column}{end_row})"
-        ws[f"P{row}"] = f"=SUM(Y{start_row}:Y{end_row})"
+        ws[f"P{row}"] = f"=SUM(P{start_row}:P{end_row})"
         self._style_total_row(ws, row)
 
     def _write_grand_total(self, ws: Worksheet, row: int, total_rows: list[int]) -> None:
