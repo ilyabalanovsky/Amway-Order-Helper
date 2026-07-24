@@ -28,6 +28,7 @@ HEADERS = [
     "Пришло в рублях",
     "Возврат по товару",
     "Перевели",
+    "Оплатили в тенге",
     "Дата заказа",
     "Курс тенге",
     "Курс тенге факт",
@@ -51,10 +52,11 @@ COLUMN_WIDTHS = {
     "N": 11.5,
     "O": 8.17,
     "P": 10.5,
-    "Q": 11.0,
-    "R": 5.2,
-    "S": 5.7,
-    "T": 8.5,
+    "Q": 10.5,
+    "R": 11.0,
+    "S": 5.2,
+    "T": 5.7,
+    "U": 8.5,
     "Y": 10.5,
 }
 
@@ -73,6 +75,7 @@ HEADER_COLOR_BY_COL = {
     "J": BLUE,
     "M": BLUE,
     "P": BLUE,
+    "Q": BLUE,
     "D": RED,
     "G": RED,
     "I": RED,
@@ -82,7 +85,7 @@ HEADER_COLOR_BY_COL = {
     "E": GREEN,
     "H": GREEN,
     "K": GREEN,
-    "T": GREEN,
+    "U": GREEN,
 }
 
 BODY_COLOR_BY_COL = {
@@ -91,6 +94,7 @@ BODY_COLOR_BY_COL = {
     10: BLUE,
     13: BLUE,
     16: BLUE,
+    17: BLUE,
     4: RED,
     7: RED,
     9: RED,
@@ -100,7 +104,7 @@ BODY_COLOR_BY_COL = {
     5: GREEN,
     8: GREEN,
     11: GREEN,
-    20: GREEN,
+    21: GREEN,
 }
 
 
@@ -170,10 +174,10 @@ class ExcelExporter:
 
     def _write_parameters(self, ws: Worksheet, order: Order) -> None:
         ws["H2"] = float(self._to_fraction(order.delivery_percent))
-        ws["Q2"] = order.order_date.strftime("%d.%m.%Y") if order.order_date else ""
-        ws["R2"] = float(order.tenge_rate)
-        ws["S2"] = float(order.tenge_rate_fact)
-        ws["T3"] = float(order.expenses)
+        ws["R2"] = order.order_date.strftime("%d.%m.%Y") if order.order_date else ""
+        ws["S2"] = float(order.tenge_rate)
+        ws["T2"] = float(order.tenge_rate_fact)
+        ws["U3"] = float(order.expenses)
         ws["K2"].number_format = "0.00%"
 
     def _write_item_row(self, ws: Worksheet, row: int, index: int, item: OrderItem) -> None:
@@ -193,35 +197,32 @@ class ExcelExporter:
 
     def _apply_item_formulas(self, ws: Worksheet, row: int) -> None:
         ws[f"F{row}"] = f"=C{row}-E{row}"
-        ws[f"G{row}"] = f"=F{row}/$R$2"
-        ws[f"H{row}"] = f"=(C{row}-D{row})/$R$2*$H$2"
+        ws[f"G{row}"] = f"=F{row}/$S$2"
+        ws[f"H{row}"] = f"=(C{row}-D{row})/$S$2*$H$2"
         ws[f"I{row}"] = f"=G{row}+H{row}"
-        ws[f"J{row}"] = f"=F{row}/$S$2"
+        ws[f"J{row}"] = f"=F{row}/$T$2"
         ws[f"K{row}"] = f"=G{row}*$K$2"
         ws[f"L{row}"] = f"=J{row}+K{row}"
         if ws[f"N{row}"].value is None:
-            ws[f"N{row}"] = f"=(C{row}*$H$2+F{row})/$R$2"
-        ws[f"O{row}"] = f"=(C{row}-M{row})/$R$2"
+            ws[f"N{row}"] = f"=(C{row}*$H$2+F{row})/$S$2"
+        ws[f"O{row}"] = f"=(C{row}-M{row})/$S$2"
 
     def _write_group_total(self, ws: Worksheet, row: int, start_row: int, end_row: int) -> None:
         ws[f"B{row}"] = "Всего:"
-        for column in "CDEFGHIJKLMNO":
+        for column in "CDEFGHIJKLMNOPQ":
             ws[f"{column}{row}"] = f"=SUM({column}{start_row}:{column}{end_row})"
-        ws[f"P{row}"] = f"=SUM(P{start_row}:P{end_row})"
         self._style_total_row(ws, row)
 
     def _write_grand_total(self, ws: Worksheet, row: int, total_rows: list[int]) -> None:
         ws[f"B{row}"] = "Итого за весь заказ:"
-        for column in "CDEFGHIJKLMNO":
+        for column in "CDEFGHIJKLMNOPQ":
             refs = ",".join(f"{column}{group_row}" for group_row in total_rows)
             ws[f"{column}{row}"] = f"=SUM({refs})" if refs else 0
-        transferred_refs = ",".join(f"P{group_row}" for group_row in total_rows)
-        ws[f"P{row}"] = f"=SUM({transferred_refs})" if transferred_refs else 0
         self._style_total_row(ws, row)
 
     def _finalize_parameter_formulas(self, ws: Worksheet, grand_total_row: int) -> None:
-        ws["K2"] = f"=(G{grand_total_row}+T2)/G{grand_total_row}-1"
-        ws["T2"] = f"=SUM(T3:T{grand_total_row-1})"
+        ws["K2"] = f"=(G{grand_total_row}+U2)/G{grand_total_row}-1"
+        ws["U2"] = f"=SUM(U3:U{grand_total_row-1})"
 
     def _write_footer(
         self,
@@ -267,8 +268,8 @@ class ExcelExporter:
         ws[f"B{paid_row}"] = "Оплатил:"
         ws[f"C{paid_row}"] = f"=F{grand_total_row}"
         ws[f"E{paid_row}"] = f"=C{paid_row}"
-        ws[f"F{paid_row}"] = f"=E{paid_row}/R2"
-        ws[f"G{paid_row}"] = f"=E{paid_row}/S2"
+        ws[f"F{paid_row}"] = f"=E{paid_row}/S2"
+        ws[f"G{paid_row}"] = f"=E{paid_row}/T2"
         ws[f"H{paid_row}"] = f"=F{paid_row}-G{paid_row}"
         ws[f"I{paid_row}"] = f"=H{grand_total_row}"
         ws[f"L{paid_row}"] = f"=K{grand_total_row}"
@@ -296,14 +297,14 @@ class ExcelExporter:
         ws[f"O{balance_row}"] = f"=I{second_group_total}-N{paid_row}" if second_group_total else 0
 
         ws[f"B{fact_balance_row}"] = "Факт. Остаток:"
-        ws[f"C{fact_balance_row}"] = f"=E{bcc_row}/S2+P{grand_total_row}-G{paid_row}"
+        ws[f"C{fact_balance_row}"] = f"=E{bcc_row}/T2+P{grand_total_row}-G{paid_row}"
 
         ws[f"B{bcc_row}"] = "Оплатил через BCC:"
         ws[f"E{bcc_row}"] = 0
 
         ws[f"B{bcc_balance_row}"] = "Остаток:"
         ws[f"E{bcc_balance_row}"] = f"=E{paid_row}-E{bcc_row}"
-        ws[f"G{bcc_balance_row}"] = f"=E{bcc_balance_row}/S2"
+        ws[f"G{bcc_balance_row}"] = f"=E{bcc_balance_row}/T2"
 
         for row in range(start_row, bcc_balance_row + 1):
             ws[f"B{row}"].font = Font(bold=True)
@@ -312,7 +313,7 @@ class ExcelExporter:
         self._style_footer_values(ws, paid_row, balance_row, fact_balance_row, bcc_row, bcc_balance_row)
 
     def _style_body_row(self, ws: Worksheet, row: int) -> None:
-        for col in range(1, 21):
+        for col in range(1, 22):
             cell = ws.cell(row, col)
             cell.alignment = LEFT_ALIGN if col == 2 else CENTER_ALIGN
             color = BODY_COLOR_BY_COL.get(col)
@@ -322,7 +323,7 @@ class ExcelExporter:
                 cell.number_format = NUM_FORMAT
 
     def _style_total_row(self, ws: Worksheet, row: int) -> None:
-        for col in range(1, 21):
+        for col in range(1, 22):
             cell = ws.cell(row, col)
             color = BODY_COLOR_BY_COL.get(col)
             cell.font = Font(bold=True, color=color) if color else Font(bold=True)
@@ -331,7 +332,7 @@ class ExcelExporter:
                 cell.number_format = NUM_FORMAT
 
     def _style_group_row(self, ws: Worksheet, row: int) -> None:
-        for col in range(1, 21):
+        for col in range(1, 22):
             cell = ws.cell(row, col)
             cell.alignment = TEXT_ALIGN
 

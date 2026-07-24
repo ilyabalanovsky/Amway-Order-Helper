@@ -37,16 +37,17 @@ def test_exporter_writes_expected_formulas(tmp_path) -> None:
     ExcelExporter().export_new(order, path)
     ws = load_workbook(path, data_only=False).active
     assert ws["F4"].value == "=C4-E4"
-    assert ws["G4"].value == "=F4/$R$2"
-    assert ws["H4"].value == "=(C4-D4)/$R$2*$H$2"
+    assert ws["G4"].value == "=F4/$S$2"
+    assert ws["H4"].value == "=(C4-D4)/$S$2*$H$2"
     assert ws["D4"].value == 500
     assert ws["P4"].value is None
     assert ws["M4"].value == 12000
     assert ws["D5"].value == "=SUM(D4:D4)"
     assert ws["P5"].value == "=SUM(P4:P4)"
-    assert ws["K2"].value == "=(G7+T2)/G7-1"
+    assert ws["Q5"].value == "=SUM(Q4:Q4)"
+    assert ws["K2"].value == "=(G7+U2)/G7-1"
     assert ws["K4"].value == "=G4*$K$2"
-    assert ws["T2"].value == "=SUM(T3:T6)"
+    assert ws["U2"].value == "=SUM(U3:U6)"
     assert ws["C5"].font.color.rgb == "FF2E75B5"
     assert ws["E5"].font.color.rgb == "FF00B050"
     assert ws["B8"].value == "Номер заказа:"
@@ -64,8 +65,11 @@ def test_exporter_writes_expected_formulas(tmp_path) -> None:
     assert ws.column_dimensions["B"].width == 37.0
     assert ws.column_dimensions["D"].width == 14.17
     assert ws.column_dimensions["O"].width == 8.17
+    assert ws.column_dimensions["Q"].width == 10.5
+    assert ws.column_dimensions["U"].width == 8.5
     assert ws.column_dimensions["Y"].width == 10.5
     assert ws.column_dimensions["Y"].hidden is False
+    assert ws["Q1"].value == "Оплатили в тенге"
     assert ws["F12"].font.bold is True
 
 
