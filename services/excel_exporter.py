@@ -39,7 +39,7 @@ COLUMN_WIDTHS = {
     "A": 3.2,
     "B": 37.0,
     "C": 12.5,
-    "D": 14.17,
+    "D": 10.0,
     "E": 9.5,
     "F": 11.5,
     "G": 11.5,
@@ -47,8 +47,8 @@ COLUMN_WIDTHS = {
     "I": 12.0,
     "J": 9.2,
     "K": 8.7,
-    "L": 16.0,
-    "M": 8.2,
+    "L": 11.0,
+    "M": 12.0,
     "N": 11.5,
     "O": 8.17,
     "P": 10.5,
@@ -119,7 +119,7 @@ class ExcelExporter:
         workbook = Workbook()
         worksheet = workbook.active
         worksheet.title = self._make_sheet_name(order, workbook.sheetnames)
-        self._render_sheet(worksheet, order)
+        self.render_sheet(worksheet, order)
         workbook.save(destination)
         return ExportResult(destination, worksheet.title)
 
@@ -127,12 +127,12 @@ class ExcelExporter:
         workbook = load_workbook(source_file)
         sheet_name = self._make_sheet_name(order, workbook.sheetnames)
         worksheet = workbook.create_sheet(title=sheet_name)
-        self._render_sheet(worksheet, order)
+        self.render_sheet(worksheet, order)
         target = destination or source_file
         workbook.save(target)
         return ExportResult(target, sheet_name)
 
-    def _render_sheet(self, ws: Worksheet, order: Order) -> None:
+    def render_sheet(self, ws: Worksheet, order: Order) -> None:
         self._setup_sheet(ws)
         self._write_headers(ws)
         self._write_parameters(ws, order)
@@ -190,6 +190,10 @@ class ExcelExporter:
         ws[f"M{row}"] = float(item.amount_tenge)
         if item.received_rub is not None:
             ws[f"N{row}"] = float(item.received_rub)
+        if item.manual_transferred is not None:
+            ws[f"P{row}"] = float(item.manual_transferred)
+        if item.paid_tenge is not None:
+            ws[f"Q{row}"] = float(item.paid_tenge)
         if item.transferred_rub is not None:
             ws[f"Y{row}"] = float(item.transferred_rub)
         self._apply_item_formulas(ws, row)
@@ -311,6 +315,10 @@ class ExcelExporter:
             ws[f"B{row}"].alignment = TEXT_ALIGN
             ws[f"C{row}"].alignment = TEXT_ALIGN
         self._style_footer_values(ws, paid_row, balance_row, fact_balance_row, bcc_row, bcc_balance_row)
+        ws[f"C{start_row + 2}"].alignment = LEFT_ALIGN
+        ws[f"N{label_row}"].alignment = LEFT_ALIGN
+        ws[f"N{paid_row}"].alignment = LEFT_ALIGN
+        ws[f"O{label_row}"].alignment = LEFT_ALIGN
 
     def _style_body_row(self, ws: Worksheet, row: int) -> None:
         for col in range(1, 22):

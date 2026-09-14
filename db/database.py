@@ -84,6 +84,11 @@ class Database:
             conn.executescript(SCHEMA)
             self._migrate(conn)
 
+    def backup_to(self, destination: Path) -> None:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        with self.connect() as source, sqlite3.connect(destination) as target:
+            source.backup(target)
+
     def _migrate(self, conn: sqlite3.Connection) -> None:
         columns = {
             row["name"]

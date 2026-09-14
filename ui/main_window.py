@@ -6,6 +6,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QMainWindow, QTabWidget, QVBoxLayout, QWidget
 
+from app_paths import save_database_path
 from db.database import Database
 from db.repositories import OrderRepository, PartnerGroupRepository, PartnerRepository, SettingsRepository
 from models import AppSettings, Order, Partner
@@ -13,6 +14,7 @@ from services.excel_exporter import ExcelExporter
 from services.product_summary_exporter import ProductSummaryExporter
 from services.settings_service import SettingsService
 from ui.history_tab import HistoryTab
+from ui.merge_orders_tab import MergeOrdersTab
 from ui.order_tab import OrderTab
 from ui.partners_tab import PartnersTab
 from ui.settings_tab import SettingsTab
@@ -109,6 +111,20 @@ class AppContext:
     def reset_settings(self) -> None:
         self.save_settings(AppSettings())
 
+    def change_database_path(self, path: Path) -> Path:
+        path = path.expanduser().resolve(strict=False)
+        current_path = self.database.path.resolve(strict=False)
+        if path != current_path and not path.exists():
+            self.database.backup_to(path)
+        new_database = Database(path)
+        new_database.initialize()
+        saved_path = save_database_path(path)
+        self.database = new_database
+        self.main_window.database = new_database
+        self.main_window.partners_tab.refresh()
+        self.main_window.history_tab.refresh()
+        return saved_path
+
 
 class MainWindow(QMainWindow):
     def __init__(self, database_path: Path, base_dir: Path) -> None:
@@ -134,6 +150,7 @@ class MainWindow(QMainWindow):
         self.order_tab = OrderTab(self.context)
         self.partners_tab = PartnersTab(self.context)
         self.history_tab = HistoryTab(self.context)
+        self.merge_orders_tab = MergeOrdersTab(self.context)
         self.settings_tab = SettingsTab(self.context)
 
         self.history_tab.open_order_requested.connect(self.load_order_into_form)
@@ -142,6 +159,7 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.order_tab, "Заказ")
         self.tabs.addTab(self.partners_tab, "Партнёры и группы")
         self.tabs.addTab(self.history_tab, "История заказов")
+        self.tabs.addTab(self.merge_orders_tab, "Объединение заказов")
         self.tabs.addTab(self.settings_tab, "Настройки")
         self._apply_styles()
 

@@ -63,7 +63,9 @@ def test_exporter_writes_expected_formulas(tmp_path) -> None:
     assert ws.row_dimensions[1].height == 50
     assert ws.column_dimensions["A"].width == 3.2
     assert ws.column_dimensions["B"].width == 37.0
-    assert ws.column_dimensions["D"].width == 14.17
+    assert ws.column_dimensions["D"].width == 10.0
+    assert ws.column_dimensions["L"].width == 11.0
+    assert ws.column_dimensions["M"].width == 12.0
     assert ws.column_dimensions["O"].width == 8.17
     assert ws.column_dimensions["Q"].width == 10.5
     assert ws.column_dimensions["U"].width == 8.5
@@ -71,6 +73,10 @@ def test_exporter_writes_expected_formulas(tmp_path) -> None:
     assert ws.column_dimensions["Y"].hidden is False
     assert ws["Q1"].value == "Оплатили в тенге"
     assert ws["F12"].font.bold is True
+    assert ws["C10"].alignment.horizontal == "left"
+    assert ws["N11"].alignment.horizontal == "left"
+    assert ws["N12"].alignment.horizontal == "left"
+    assert ws["O11"].alignment.horizontal == "left"
 
 
 def test_one_percent_ed_uses_named_group_delivery_totals(tmp_path) -> None:

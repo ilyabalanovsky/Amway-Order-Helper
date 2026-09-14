@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import sqlite3
 from decimal import Decimal
+from pathlib import Path
 
+from app_paths import get_default_database_path
 from PySide6.QtWidgets import (
     QCheckBox,
+    QFileDialog,
     QFormLayout,
+    QHBoxLayout,
     QLineEdit,
     QMessageBox,
     QPushButton,
@@ -28,13 +33,26 @@ class SettingsTab(QWidget):
         form.setHorizontalSpacing(10)
         form.setVerticalSpacing(6)
         self.output_dir = QLineEdit()
+        self.database_path = QLineEdit()
         self.file_template = QLineEdit()
         self.delivery_percent = QLineEdit()
         self.expenses = QLineEdit()
         self.open_after_export = QCheckBox("Открывать файл после генерации")
         self.warn_on_total_mismatch = QCheckBox("Предупреждать при расхождении итогов")
         self.block_unknown = QCheckBox("Запрещать экспорт при неизвестных партнёрах")
-        form.addRow("Путь по умолчанию", self.output_dir)
+        database_row = QWidget()
+        database_layout = QHBoxLayout(database_row)
+        database_layout.setContentsMargins(0, 0, 0, 0)
+        database_layout.setSpacing(6)
+        choose_database = QPushButton("Выбрать")
+        default_database = QPushButton("Стандартный")
+        choose_database.clicked.connect(self.choose_database_path)
+        default_database.clicked.connect(self.use_default_database_path)
+        database_layout.addWidget(self.database_path, 1)
+        database_layout.addWidget(choose_database)
+        database_layout.addWidget(default_database)
+        form.addRow("Файл базы данных", database_row)
+        form.addRow("Путь сохранения Excel", self.output_dir)
         form.addRow("Шаблон имени", self.file_template)
         form.addRow("Доставка %", self.delivery_percent)
         form.addRow("Расходы", self.expenses)
@@ -51,6 +69,7 @@ class SettingsTab(QWidget):
 
     def load(self) -> None:
         settings = self.app_context.load_settings()
+        self.database_path.setText(str(self.app_context.database.path.resolve(strict=False)))
         self.output_dir.setText(settings.default_output_dir)
         self.file_template.setText(settings.file_name_template)
         delivery_percent = float(settings.default_delivery_percent)
@@ -61,6 +80,16 @@ class SettingsTab(QWidget):
         self.block_unknown.setChecked(settings.block_export_on_unknown_partner)
 
     def save(self) -> None:
+        raw_database_path = self.database_path.text().strip()
+        database_path = Path(raw_database_path).expanduser()
+        if not raw_database_path or not database_path.is_absolute():
+            QMessageBox.warning(
+                self,
+                "Некорректный путь",
+                "Укажите полный путь к файлу базы данных.",
+            )
+            return
+
         settings = self.app_context.load_settings()
         settings.default_output_dir = self.output_dir.text().strip()
         settings.file_name_template = self.file_template.text().strip()
@@ -70,11 +99,41 @@ class SettingsTab(QWidget):
         settings.open_after_export = self.open_after_export.isChecked()
         settings.warn_on_total_mismatch = self.warn_on_total_mismatch.isChecked()
         settings.block_export_on_unknown_partner = self.block_unknown.isChecked()
-        self.app_context.save_settings(settings)
+        try:
+            saved_database_path = self.app_context.change_database_path(database_path)
+            self.app_context.save_settings(settings)
+        except (OSError, ValueError, sqlite3.Error) as exc:
+            QMessageBox.warning(
+                self,
+                "Ошибка базы данных",
+                f"Не удалось переключиться на базу данных:\n{database_path}\n\n{exc}",
+            )
+            return
+        self.database_path.setText(str(saved_database_path))
         self.app_context.main_window.order_tab.apply_default_settings()
-        QMessageBox.information(self, "Сохранено", "Настройки обновлены.")
+        QMessageBox.information(
+            self,
+            "База данных подключена",
+            f"Настройки сохранены. Приложение использует базу данных:\n{saved_database_path}",
+        )
 
     def reset(self) -> None:
         self.app_context.reset_settings()
         self.app_context.main_window.order_tab.apply_default_settings()
         self.load()
+
+    def choose_database_path(self) -> None:
+        dialog = QFileDialog(self, "Выберите существующую или новую базу данных")
+        dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
+        dialog.setFileMode(QFileDialog.FileMode.AnyFile)
+        dialog.setNameFilters(["SQLite (*.sqlite3 *.sqlite *.db)", "Все файлы (*)"])
+        dialog.setOption(QFileDialog.Option.DontConfirmOverwrite, True)
+        current_path = self.database_path.text().strip()
+        if current_path:
+            dialog.selectFile(current_path)
+        if dialog.exec() and dialog.selectedFiles():
+            path = dialog.selectedFiles()[0]
+            self.database_path.setText(str(Path(path).resolve(strict=False)))
+
+    def use_default_database_path(self) -> None:
+        self.database_path.setText(str(get_default_database_path().resolve(strict=False)))

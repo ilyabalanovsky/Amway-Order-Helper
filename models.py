@@ -43,6 +43,8 @@ class OrderItem:
     delivery_percent: Decimal | None = None
     paid_rub: Decimal | None = None
     transferred_rub: Decimal | None = None
+    manual_transferred: Decimal | None = None
+    paid_tenge: Decimal | None = None
     received_tenge: Decimal | None = None
     received_rub: Decimal | None = None
     comment: str = ""
