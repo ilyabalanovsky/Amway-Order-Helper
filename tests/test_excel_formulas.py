@@ -55,6 +55,8 @@ def test_exporter_writes_expected_formulas(tmp_path) -> None:
     assert ws["E15"].value == 0
     assert ws["F12"].font.color.rgb == "FF2E75B5"
     assert ws["H12"].font.color.rgb == "FFC00000"
+    assert ws["H13"].value == "=(T2-S2)*(E12-Q7)/(T2*S2)"
+    assert ws["C13"].value == "=H13+I12-L12-N12"
     assert ws["I12"].font.color.rgb == "FF00B050"
     assert ws["B4"].alignment.horizontal == "left"
     assert ws["B1"].alignment.horizontal == "right"
@@ -136,3 +138,5 @@ def test_one_percent_ed_uses_named_group_delivery_totals(tmp_path) -> None:
     ExcelExporter().export_new(order, path)
     ws = load_workbook(path, data_only=False).active
     assert ws["N21"].value == "=(H8+H11+H14)/6"
+    assert ws["H22"].value == "=(T2-S2)*(E21-Q16)/(T2*S2)"
+    assert ws["C22"].value == "=H22+I21-L21-N21"

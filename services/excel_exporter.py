@@ -297,7 +297,8 @@ class ExcelExporter:
         ws[f"O{paid_row}"] = f"=H{second_group_total}-N{paid_row}" if second_group_total else 0
 
         ws[f"B{balance_row}"] = "Остаток:"
-        ws[f"C{balance_row}"] = f"=H{paid_row}+I{paid_row}-L{paid_row}-N{paid_row}"
+        ws[f"H{balance_row}"] = f"=(T2-S2)*(E{paid_row}-Q{grand_total_row})/(T2*S2)"
+        ws[f"C{balance_row}"] = f"=H{balance_row}+I{paid_row}-L{paid_row}-N{paid_row}"
         ws[f"O{balance_row}"] = f"=I{second_group_total}-N{paid_row}" if second_group_total else 0
 
         ws[f"B{fact_balance_row}"] = "Факт. Остаток:"
